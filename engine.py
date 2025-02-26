@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Merged Voice Assistant with Wakeword and Stereo Vision Object Detection
+Voice Assistant with Wakeword and Stereo Vision Object Detection
 
 Behavior:
  - The stereo vision loop (using YOLO + triangulation) runs continuously,
