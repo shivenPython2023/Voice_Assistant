@@ -12,4 +12,6 @@ After waking up the model, give an input (via speaking) of either an object (ie.
 
 The code will announce all objects as well as their depths and orientations. 
 
+In order for depth to work, you must have a 2 camera system and calibrate it. Collect images using calibration_images.py and create stereomap.xml by running stereo_calibration.py.
+
 Enjoy!
