@@ -1,25 +1,26 @@
 import cv2
-from picamera2 import Picamera2
 
-# Initialize PiCamera2
-#0 should be right side
-picam1 = Picamera2(0)
-picam2 = Picamera2(1) 
+for i in range(10):
+    cap_test = cv2.VideoCapture(i)
+    if cap_test.isOpened():
+        print(f"Camera index {i} is available.")
+        cap_test.release()
 
-picam2.configure(picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)}))
-picam2.start()
+cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+cap2 = cv2.VideoCapture(1, cv2.CAP_AVFOUNDATION)
 
-picam1.configure(picam1.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)}))
-picam1.start()                                                                                                                                                     
-
-
+# Set resolution to 640x480 for both cameras
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 num = 0
 
 
-while True:
+while cap.isOpened():
 
-    img = picam2.capture_array()  # Capture an image frame from camera 0
-    img2 = picam1.capture_array()  # Capture an image frame from camera 1
+    succes1, img = cap.read()
+    succes2, img2 = cap2.read()
 
 
     k = cv2.waitKey(5)
@@ -28,7 +29,7 @@ while True:
         break
     elif k == ord('s'): # wait for 's' key to save and exit
         cv2.imwrite('images/stereoLeft/imageL' + str(num) + '.png', img)
-        cv2.imwrite('images/stereoRight/imageR' + str(num) + '.png', img2)
+        cv2.imwrite('images/stereoright/imageR' + str(num) + '.png', img2)
         print("images saved!")
         num += 1
 
