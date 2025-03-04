@@ -5,8 +5,7 @@ Voice Assistant with Wakeword and Stereo Vision Object Detection
 Behavior:
  - The stereo vision loop (using YOLO + triangulation) runs continuously,
    showing two windows with annotated detections.
- - In parallel, the wakeword engine (using the original engine.py logic)
-   continuously listens for the wakeword.
+ - In parallel, the wakeword engine continuously listens for the wakeword.
  - When the wakeword is triggered, the system records a short command.
    If the command is "all objects" (or similar), every object from the latest
    frame is announced with its depth and orientation. Otherwise, if the command
@@ -30,7 +29,6 @@ import pyaudio
 import whisper
 import pyttsx3
 
-from picamera2 import Picamera2
 from ultralytics import YOLO
 from dataset import get_featurizer
 
@@ -52,16 +50,24 @@ latest_frame_shape = None
 # Initialize text-to-speech engine (used for wakeword announcements)
 tts_engine = pyttsx3.init('espeak')
 voices = tts_engine.getProperty('voices')
-tts_engine.setProperty('voice',voices[17].id) #English
+tts_engine.setProperty('voice', voices[17].id)  # English
 tts_engine.setProperty('rate', 170)
 
-# Initialize the two PiCamera2 instances (one for right and one for left)
-picam2 = Picamera2(0)
-picam1 = Picamera2(1)
-picam2.configure(picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)}))
-picam2.start()
-picam1.configure(picam1.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)}))
-picam1.start()
+# -----------------------------------------------------------------------------
+# Initialize two normal cameras using OpenCV
+# -----------------------------------------------------------------------------
+
+cap = cv2.VideoCapture(0)
+cap2 = cv2.VideoCapture(2)
+# Set resolution to 640x480 for both cameras
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+# -----------------------------------------------------------------------------
+# Load models and calibration data
+# -----------------------------------------------------------------------------
 
 # Load Whisper model for transcription
 whisper_model = whisper.load_model('tiny.en')
@@ -99,9 +105,12 @@ def get_clock_orientation(center, frame_shape):
 def run_stereovision_loop():
     global latest_announcements, latest_frame_shape
     while True:
-        # Capture frames from both cameras
-        frame_right = picam2.capture_array()
-        frame_left = picam1.capture_array()
+        # Capture frames from both cameras using OpenCV
+        ret1, frame_right = cap2.read()
+        ret2, frame_left = cap.read()
+        if not ret1 or not ret2:
+            print("Error: Unable to capture frames from one or both cameras")
+            break
 
         # Undistort/rectify frames using calibration data
         frame_right, frame_left = calibration.undistortRectify(frame_right, frame_left)
@@ -109,7 +118,7 @@ def run_stereovision_loop():
 
         start = time.time()
 
-        # Convert frames to RGB for YOLO
+        # Convert frames to RGB for YOLO detection
         frame_right_rgb = cv2.cvtColor(frame_right, cv2.COLOR_BGR2RGB)
         frame_left_rgb = cv2.cvtColor(frame_left, cv2.COLOR_BGR2RGB)
 
@@ -235,6 +244,8 @@ def run_stereovision_loop():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+    cap.release()
+    cap2.release()
     cv2.destroyAllWindows()
 
 # -----------------------------------------------------------------------------
@@ -321,7 +332,6 @@ class VoiceAssistAction:
         import random
         import os
         import subprocess
-        import random
         from os.path import join, realpath
 
         self.random = random
@@ -350,7 +360,6 @@ class VoiceAssistAction:
             print("playing", filename)
             self.subprocess.check_output(['play', '-v', '.1', filename])
 
-
             CHUNK = 1024
             FORMAT = pyaudio.paInt16
             CHANNELS = 1
@@ -362,12 +371,10 @@ class VoiceAssistAction:
                             rate=RATE,
                             input=True,
                             frames_per_buffer=CHUNK)
-            
-
 
             print("Start recording command...")
             frames = []
-            seconds = 3 # Record for 2 seconds
+            seconds = 3  # Record for 3 seconds
             for i in range(0, int(RATE / CHUNK * seconds)):
                 data = stream.read(CHUNK)
                 frames.append(data)
